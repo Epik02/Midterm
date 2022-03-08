@@ -11,7 +11,7 @@
 #include "Gameplay/Physics/TriggerVolume.h"
 #include "Gameplay/MeshResource.h"
 #include "Gameplay/Material.h"
-
+#include <Gameplay/InputEngine.h>
 #include "Graphics/DebugDraw.h"
 #include "Graphics/Textures/TextureCube.h"
 #include "Graphics/VertexArrayObject.h"
@@ -186,6 +186,10 @@ namespace Gameplay {
 			}
 		}
 		_FlushDeleteQueue();
+
+		if ((InputEngine::GetKeyState(GLFW_KEY_E) == ButtonState::Pressed)) {
+			std::cout << "test";
+		}
 	}
 
 	void Scene::RenderGUI()
