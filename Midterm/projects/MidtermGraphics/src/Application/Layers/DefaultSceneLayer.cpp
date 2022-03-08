@@ -69,18 +69,19 @@
 #include "Gameplay/Components/ParticleSystem.h"
 #include "Graphics/Textures/Texture3D.h"
 #include "Graphics/Textures/Texture1D.h"
-#include <Gameplay/Components/EnemyBehaviour.h>
+
+GLFWwindow* window;
 
 DefaultSceneLayer::DefaultSceneLayer() :
 	ApplicationLayer()
 {
-	Name = "Default Scene";
+	Name = "Space Invaders";
 	Overrides = AppLayerFunctions::OnAppLoad;
 }
 
 DefaultSceneLayer::~DefaultSceneLayer() = default;
 
-void DefaultSceneLayer::OnAppLoad(const nlohmann::json& config) {
+void DefaultSceneLayer::OnAppLoad(const nlohmann::json & config) {
 	_CreateScene();
 }
 
@@ -95,28 +96,29 @@ void DefaultSceneLayer::_CreateScene()
 	// For now we can use a toggle to generate our scene vs load from file
 	if (loadScene && std::filesystem::exists("scene.json")) {
 		app.LoadScene("scene.json");
-	} else {
-		 
+	}
+	else {
+
 		// Basic gbuffer generation with no vertex manipulation
 		ShaderProgram::Sptr deferredForward = ResourceManager::CreateAsset<ShaderProgram>(std::unordered_map<ShaderPartType, std::string>{
 			{ ShaderPartType::Vertex, "shaders/vertex_shaders/basic.glsl" },
 			{ ShaderPartType::Fragment, "shaders/fragment_shaders/deferred_forward.glsl" }
 		});
-		deferredForward->SetDebugName("Deferred - GBuffer Generation");  
+		deferredForward->SetDebugName("Deferred - GBuffer Generation");
 
 		// Our foliage shader which manipulates the vertices of the mesh
 		ShaderProgram::Sptr foliageShader = ResourceManager::CreateAsset<ShaderProgram>(std::unordered_map<ShaderPartType, std::string>{
 			{ ShaderPartType::Vertex, "shaders/vertex_shaders/foliage.glsl" },
 			{ ShaderPartType::Fragment, "shaders/fragment_shaders/deferred_forward.glsl" }
-		});  
-		foliageShader->SetDebugName("Foliage");   
+		});
+		foliageShader->SetDebugName("Foliage");
 
 		// This shader handles our multitexturing example
 		ShaderProgram::Sptr multiTextureShader = ResourceManager::CreateAsset<ShaderProgram>(std::unordered_map<ShaderPartType, std::string>{
-			{ ShaderPartType::Vertex, "shaders/vertex_shaders/vert_multitextured.glsl" },  
+			{ ShaderPartType::Vertex, "shaders/vertex_shaders/vert_multitextured.glsl" },
 			{ ShaderPartType::Fragment, "shaders/fragment_shaders/frag_multitextured.glsl" }
 		});
-		multiTextureShader->SetDebugName("Multitexturing"); 
+		multiTextureShader->SetDebugName("Multitexturing");
 
 		// This shader handles our displacement mapping example
 		ShaderProgram::Sptr displacementShader = ResourceManager::CreateAsset<ShaderProgram>(std::unordered_map<ShaderPartType, std::string>{
@@ -134,13 +136,21 @@ void DefaultSceneLayer::_CreateScene()
 
 
 		// Load in the meshes
-		//MeshResource::Sptr monkeyMesh = ResourceManager::CreateAsset<MeshResource>("Monkey.obj");
+		MeshResource::Sptr monkeyMesh = ResourceManager::CreateAsset<MeshResource>("Monkey.obj");
+		MeshResource::Sptr boxMesh = ResourceManager::CreateAsset<MeshResource>("cube.obj");
+		MeshResource::Sptr playerMesh = ResourceManager::CreateAsset<MeshResource>("Player.obj");
+		MeshResource::Sptr enemy1Mesh = ResourceManager::CreateAsset<MeshResource>("Enemy1.obj");
+		MeshResource::Sptr enemy2Mesh = ResourceManager::CreateAsset<MeshResource>("Enemy2.obj");
+		MeshResource::Sptr enemy3Mesh = ResourceManager::CreateAsset<MeshResource>("Enemy3.obj");
+		MeshResource::Sptr bunkerMesh = ResourceManager::CreateAsset<MeshResource>("Bunker.obj");
 
 		// Load in some textures
-		Texture2D::Sptr    boxTexture   = ResourceManager::CreateAsset<Texture2D>("textures/box-diffuse.png");
-		Texture2D::Sptr    boxSpec      = ResourceManager::CreateAsset<Texture2D>("textures/box-specular.png");
-		Texture2D::Sptr    monkeyTex    = ResourceManager::CreateAsset<Texture2D>("textures/monkey-uvMap.png");
-		Texture2D::Sptr    leafTex      = ResourceManager::CreateAsset<Texture2D>("textures/leaves.png");
+		Texture2D::Sptr    boxTexture = ResourceManager::CreateAsset<Texture2D>("textures/box-diffuse.png");
+		Texture2D::Sptr    playerTexture = ResourceManager::CreateAsset<Texture2D>("textures/PlayerTexture.jpg");
+		Texture2D::Sptr    enemyTexture = ResourceManager::CreateAsset<Texture2D>("textures/EnemyTexture.jpg");
+		Texture2D::Sptr    boxSpec = ResourceManager::CreateAsset<Texture2D>("textures/box-specular.png");
+		Texture2D::Sptr    monkeyTex = ResourceManager::CreateAsset<Texture2D>("textures/monkey-uvMap.png");
+		Texture2D::Sptr    leafTex = ResourceManager::CreateAsset<Texture2D>("textures/leaves.png");
 		leafTex->SetMinFilter(MinFilter::Nearest);
 		leafTex->SetMagFilter(MagFilter::Nearest);
 
@@ -168,27 +178,27 @@ void DefaultSceneLayer::_CreateScene()
 #pragma endregion 
 
 		// Loading in a 1D LUT
-		Texture1D::Sptr toonLut = ResourceManager::CreateAsset<Texture1D>("luts/toon-1D.png"); 
+		Texture1D::Sptr toonLut = ResourceManager::CreateAsset<Texture1D>("luts/toon-1D.png");
 		toonLut->SetWrap(WrapMode::ClampToEdge);
 
 		// Here we'll load in the cubemap, as well as a special shader to handle drawing the skybox
 		TextureCube::Sptr testCubemap = ResourceManager::CreateAsset<TextureCube>("cubemaps/ocean/ocean.jpg");
 		ShaderProgram::Sptr      skyboxShader = ResourceManager::CreateAsset<ShaderProgram>(std::unordered_map<ShaderPartType, std::string>{
 			{ ShaderPartType::Vertex, "shaders/vertex_shaders/skybox_vert.glsl" },
-			{ ShaderPartType::Fragment, "shaders/fragment_shaders/skybox_frag.glsl" } 
+			{ ShaderPartType::Fragment, "shaders/fragment_shaders/skybox_frag.glsl" }
 		});
-		  
+
 		// Create an empty scene
-		Scene::Sptr scene = std::make_shared<Scene>();  
+		Scene::Sptr scene = std::make_shared<Scene>();
 
 		// Setting up our enviroment map
-		scene->SetSkyboxTexture(testCubemap); 
+		scene->SetSkyboxTexture(testCubemap);
 		scene->SetSkyboxShader(skyboxShader);
 		// Since the skybox I used was for Y-up, we need to rotate it 90 deg around the X-axis to convert it to z-up 
 		scene->SetSkyboxRotation(glm::rotate(MAT4_IDENTITY, glm::half_pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f)));
 
 		// Loading in a color lookup table
-		Texture3D::Sptr lut = ResourceManager::CreateAsset<Texture3D>("luts/cool.CUBE");   
+		Texture3D::Sptr lut = ResourceManager::CreateAsset<Texture3D>("luts/cool.CUBE");
 
 		// Configure the color correction LUT
 		scene->SetColorLUT(lut);
@@ -203,6 +213,22 @@ void DefaultSceneLayer::_CreateScene()
 			boxMaterial->Set("u_Material.NormalMap", normalMapDefault);
 		}
 
+		Material::Sptr playerMaterial = ResourceManager::CreateAsset<Material>(deferredForward);
+		{
+			playerMaterial->Name = "pm";
+			playerMaterial->Set("u_Material.AlbedoMap", playerTexture);
+			playerMaterial->Set("u_Material.Shininess", 0.1f);
+			playerMaterial->Set("u_Material.NormalMap", normalMapDefault);
+		}
+
+		Material::Sptr enemyMaterial = ResourceManager::CreateAsset<Material>(deferredForward);
+		{
+			enemyMaterial->Name = "pm";
+			enemyMaterial->Set("u_Material.AlbedoMap", enemyTexture);
+			enemyMaterial->Set("u_Material.Shininess", 0.1f);
+			enemyMaterial->Set("u_Material.NormalMap", normalMapDefault);
+		}
+
 		// This will be the reflective material, we'll make the whole thing 90% reflective
 		Material::Sptr monkeyMaterial = ResourceManager::CreateAsset<Material>(deferredForward);
 		{
@@ -213,10 +239,10 @@ void DefaultSceneLayer::_CreateScene()
 		}
 
 		// This will be the reflective material, we'll make the whole thing 50% reflective
-		Material::Sptr testMaterial = ResourceManager::CreateAsset<Material>(deferredForward); 
+		Material::Sptr testMaterial = ResourceManager::CreateAsset<Material>(deferredForward);
 		{
 			testMaterial->Name = "Box-Specular";
-			testMaterial->Set("u_Material.AlbedoMap", boxTexture); 
+			testMaterial->Set("u_Material.AlbedoMap", boxTexture);
 			testMaterial->Set("u_Material.Specular", boxSpec);
 			testMaterial->Set("u_Material.NormalMap", normalMapDefault);
 		}
@@ -239,11 +265,11 @@ void DefaultSceneLayer::_CreateScene()
 		// Our toon shader material
 		Material::Sptr toonMaterial = ResourceManager::CreateAsset<Material>(celShader);
 		{
-			toonMaterial->Name = "Toon"; 
+			toonMaterial->Name = "Toon";
 			toonMaterial->Set("u_Material.AlbedoMap", boxTexture);
 			toonMaterial->Set("u_Material.NormalMap", normalMapDefault);
 			toonMaterial->Set("s_ToonTerm", toonLut);
-			toonMaterial->Set("u_Material.Shininess", 0.1f); 
+			toonMaterial->Set("u_Material.Shininess", 0.1f);
 			toonMaterial->Set("u_Material.Steps", 8);
 		}
 
@@ -251,8 +277,8 @@ void DefaultSceneLayer::_CreateScene()
 		Material::Sptr displacementTest = ResourceManager::CreateAsset<Material>(displacementShader);
 		{
 			Texture2D::Sptr displacementMap = ResourceManager::CreateAsset<Texture2D>("textures/displacement_map.png");
-			Texture2D::Sptr normalMap       = ResourceManager::CreateAsset<Texture2D>("textures/normal_map.png");
-			Texture2D::Sptr diffuseMap      = ResourceManager::CreateAsset<Texture2D>("textures/bricks_diffuse.png");
+			Texture2D::Sptr normalMap = ResourceManager::CreateAsset<Texture2D>("textures/normal_map.png");
+			Texture2D::Sptr diffuseMap = ResourceManager::CreateAsset<Texture2D>("textures/bricks_diffuse.png");
 
 			displacementTest->Name = "Displacement Map";
 			displacementTest->Set("u_Material.AlbedoMap", diffuseMap);
@@ -264,8 +290,8 @@ void DefaultSceneLayer::_CreateScene()
 
 		Material::Sptr normalmapMat = ResourceManager::CreateAsset<Material>(deferredForward);
 		{
-			Texture2D::Sptr normalMap       = ResourceManager::CreateAsset<Texture2D>("textures/normal_map.png");
-			Texture2D::Sptr diffuseMap      = ResourceManager::CreateAsset<Texture2D>("textures/bricks_diffuse.png");
+			Texture2D::Sptr normalMap = ResourceManager::CreateAsset<Texture2D>("textures/normal_map.png");
+			Texture2D::Sptr diffuseMap = ResourceManager::CreateAsset<Texture2D>("textures/bricks_diffuse.png");
 
 			normalmapMat->Name = "Tangent Space Normal Map";
 			normalmapMat->Set("u_Material.AlbedoMap", diffuseMap);
@@ -276,7 +302,7 @@ void DefaultSceneLayer::_CreateScene()
 
 		Material::Sptr multiTextureMat = ResourceManager::CreateAsset<Material>(multiTextureShader);
 		{
-			Texture2D::Sptr sand  = ResourceManager::CreateAsset<Texture2D>("textures/terrain/sand.png");
+			Texture2D::Sptr sand = ResourceManager::CreateAsset<Texture2D>("textures/terrain/sand.png");
 			Texture2D::Sptr grass = ResourceManager::CreateAsset<Texture2D>("textures/terrain/grass.png");
 
 			multiTextureMat->Name = "Multitexturing";
@@ -285,7 +311,7 @@ void DefaultSceneLayer::_CreateScene()
 			multiTextureMat->Set("u_Material.NormalMapA", normalMapDefault);
 			multiTextureMat->Set("u_Material.NormalMapB", normalMapDefault);
 			multiTextureMat->Set("u_Material.Shininess", 0.5f);
-			multiTextureMat->Set("u_Scale", 0.1f); 
+			multiTextureMat->Set("u_Scale", 0.1f);
 		}
 
 		// Create some lights for our scene
@@ -314,7 +340,8 @@ void DefaultSceneLayer::_CreateScene()
 		// Set up the scene's camera
 		GameObject::Sptr camera = scene->MainCamera->GetGameObject()->SelfRef();
 		{
-			camera->SetPostion({ -9, -6, 15 });
+			camera->SetPostion({ 1.86, 0.440, 16.6 });
+			camera->SetRotation({ 90, 0, 0 });
 			camera->LookAt(glm::vec3(0.0f));
 
 			camera->Add<SimpleCameraControl>();
@@ -343,26 +370,136 @@ void DefaultSceneLayer::_CreateScene()
 			physics->AddCollider(BoxCollider::Create(glm::vec3(50.0f, 50.0f, 1.0f)))->SetPosition({ 0,0,-1 });
 		}
 
-		//GameObject::Sptr monkey1 = scene->CreateGameObject("Monkey 1");
-		//{
-		//	// Set position in the scene
-		//	monkey1->SetPostion(glm::vec3(1.5f, 0.0f, 1.0f));
+		GameObject::Sptr monkey1 = scene->CreateGameObject("Monkey 1");
+		{
+			// Set position in the scene
+			monkey1->SetPostion(glm::vec3(1.5f, 0.0f, 1.0f));
 
-		//	// Add some behaviour that relies on the physics body
-		//	monkey1->Add<JumpBehaviour>();
+			// Add some behaviour that relies on the physics body
+			monkey1->Add<JumpBehaviour>();
 
-		//	// Create and attach a renderer for the monkey
-		//	RenderComponent::Sptr renderer = monkey1->Add<RenderComponent>();
-		//	renderer->SetMesh(monkeyMesh);
-		//	renderer->SetMaterial(monkeyMaterial);
+			// Create and attach a renderer for the monkey
+			RenderComponent::Sptr renderer = monkey1->Add<RenderComponent>();
+			renderer->SetMesh(monkeyMesh);
+			renderer->SetMaterial(monkeyMaterial);
 
-		//	// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
-		//	TriggerVolume::Sptr trigger = monkey1->Add<TriggerVolume>();
-		//	trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
-		//	trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
+			// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
+			TriggerVolume::Sptr trigger = monkey1->Add<TriggerVolume>();
+			trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
+			trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
 
-		//	monkey1->Add<TriggerVolumeEnterBehaviour>();
-		//}
+			monkey1->Add<TriggerVolumeEnterBehaviour>();
+		}
+
+		GameObject::Sptr player = scene->CreateGameObject("player");
+		{
+			// Set position in the scene
+			player->SetPostion(glm::vec3(1.5f, 0.0f, 1.0f));
+			player->SetScale(glm::vec3(2.f, 2.f, 2.f));
+
+			// Add some behaviour that relies on the physics body
+			player->Add<JumpBehaviour>();
+
+			// Create and attach a renderer for the monkey
+			RenderComponent::Sptr renderer = player->Add<RenderComponent>();
+			renderer->SetMesh(playerMesh);
+			renderer->SetMaterial(playerMaterial);
+
+			// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
+			TriggerVolume::Sptr trigger = player->Add<TriggerVolume>();
+			trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
+			trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
+
+			player->Add<TriggerVolumeEnterBehaviour>();
+		}
+
+		GameObject::Sptr bunker = scene->CreateGameObject("bunker");
+		{
+			// Set position in the scene
+			bunker->SetPostion(glm::vec3(1.670f, 3.080f, 6.400f));
+			bunker->SetScale(glm::vec3(0.4f, 0.4f, 0.4f));
+
+			// Add some behaviour that relies on the physics body
+			bunker->Add<JumpBehaviour>();
+
+			// Create and attach a renderer for the monkey
+			RenderComponent::Sptr renderer = bunker->Add<RenderComponent>();
+			renderer->SetMesh(bunkerMesh);
+			renderer->SetMaterial(enemyMaterial);
+
+			// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
+			TriggerVolume::Sptr trigger = bunker->Add<TriggerVolume>();
+			trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
+			trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
+
+			bunker->Add<TriggerVolumeEnterBehaviour>();
+		}
+
+		GameObject::Sptr enemy1 = scene->CreateGameObject("enemy1");
+		{
+			// Set position in the scene
+			enemy1->SetPostion(glm::vec3(-9.8f, 13.f, 1.0f));
+			enemy1->SetScale(glm::vec3(0.1f, 0.1f, 0.1f));
+
+			// Add some behaviour that relies on the physics body
+			enemy1->Add<JumpBehaviour>();
+
+			// Create and attach a renderer for the monkey
+			RenderComponent::Sptr renderer = enemy1->Add<RenderComponent>();
+			renderer->SetMesh(enemy1Mesh);
+			renderer->SetMaterial(enemyMaterial);
+
+			// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
+			TriggerVolume::Sptr trigger = enemy1->Add<TriggerVolume>();
+			trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
+			trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
+
+			enemy1->Add<TriggerVolumeEnterBehaviour>();
+		}
+
+		GameObject::Sptr enemy2 = scene->CreateGameObject("enemy2");
+		{
+			// Set position in the scene
+			enemy2->SetPostion(glm::vec3(3.65f, 11.3f, 1.0f));
+			enemy2->SetScale(glm::vec3(0.1f, 0.1f, 0.1f));
+
+			// Add some behaviour that relies on the physics body
+			enemy2->Add<JumpBehaviour>();
+
+			// Create and attach a renderer for the monkey
+			RenderComponent::Sptr renderer = enemy2->Add<RenderComponent>();
+			renderer->SetMesh(enemy2Mesh);
+			renderer->SetMaterial(enemyMaterial);
+
+			// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
+			TriggerVolume::Sptr trigger = enemy2->Add<TriggerVolume>();
+			trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
+			trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
+
+			enemy2->Add<TriggerVolumeEnterBehaviour>();
+		}
+
+		GameObject::Sptr enemy3 = scene->CreateGameObject("enemy3");
+		{
+			// Set position in the scene
+			enemy3->SetPostion(glm::vec3(18.f, 13.6f, 1.0f));
+			enemy3->SetScale(glm::vec3(1.f, 1.f, 1.f));
+
+			// Add some behaviour that relies on the physics body
+			enemy3->Add<JumpBehaviour>();
+
+			// Create and attach a renderer for the monkey
+			RenderComponent::Sptr renderer = enemy3->Add<RenderComponent>();
+			renderer->SetMesh(enemy3Mesh);
+			renderer->SetMaterial(enemyMaterial);
+
+			// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
+			TriggerVolume::Sptr trigger = enemy3->Add<TriggerVolume>();
+			trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
+			trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
+
+			enemy3->Add<TriggerVolumeEnterBehaviour>();
+		}
 
 		GameObject::Sptr demoBase = scene->CreateGameObject("Demo Parent");
 
@@ -379,7 +516,7 @@ void DefaultSceneLayer::_CreateScene()
 			// Add a render component
 			RenderComponent::Sptr renderer = specBox->Add<RenderComponent>();
 			renderer->SetMesh(boxMesh);
-			renderer->SetMaterial(testMaterial); 
+			renderer->SetMaterial(testMaterial);
 
 			demoBase->AddChild(specBox);
 		}
@@ -394,7 +531,7 @@ void DefaultSceneLayer::_CreateScene()
 			RenderComponent::Sptr renderer = foliageBall->Add<RenderComponent>();
 			renderer->SetMesh(sphere);
 			renderer->SetMaterial(foliageMaterial);
-			//foliageBall->Add<EnemyBehaviour>();
+
 			demoBase->AddChild(foliageBall);
 		}
 
@@ -518,9 +655,11 @@ void DefaultSceneLayer::_CreateScene()
 
 		GameObject::Sptr particles = scene->CreateGameObject("Particles");
 		{
-			ParticleSystem::Sptr particleManager = particles->Add<ParticleSystem>();  
-			particleManager->AddEmitter(glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 10.0f), 10.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f)); 
+			ParticleSystem::Sptr particleManager = particles->Add<ParticleSystem>();
+			particleManager->AddEmitter(glm::vec3(0.0f), glm::vec3(0.0f, -1.0f, 10.0f), 10.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
 		}
+
+		std::cout << "test";
 
 		GuiBatcher::SetDefaultTexture(ResourceManager::CreateAsset<Texture2D>("textures/ui-sprite.png"));
 		GuiBatcher::SetDefaultBorderRadius(8);
@@ -533,4 +672,6 @@ void DefaultSceneLayer::_CreateScene()
 		// Send the scene to the application
 		app.LoadScene(scene);
 	}
+	std::cout << "test";
 }
+
