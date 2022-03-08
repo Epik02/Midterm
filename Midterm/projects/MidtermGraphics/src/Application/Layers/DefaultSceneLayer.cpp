@@ -133,7 +133,7 @@ void DefaultSceneLayer::_CreateScene()
 
 
 		// Load in the meshes
-		MeshResource::Sptr monkeyMesh = ResourceManager::CreateAsset<MeshResource>("Monkey.obj");
+		//MeshResource::Sptr monkeyMesh = ResourceManager::CreateAsset<MeshResource>("Monkey.obj");
 
 		// Load in some textures
 		Texture2D::Sptr    boxTexture   = ResourceManager::CreateAsset<Texture2D>("textures/box-diffuse.png");
@@ -342,26 +342,26 @@ void DefaultSceneLayer::_CreateScene()
 			physics->AddCollider(BoxCollider::Create(glm::vec3(50.0f, 50.0f, 1.0f)))->SetPosition({ 0,0,-1 });
 		}
 
-		GameObject::Sptr monkey1 = scene->CreateGameObject("Monkey 1");
-		{
-			// Set position in the scene
-			monkey1->SetPostion(glm::vec3(1.5f, 0.0f, 1.0f));
+		//GameObject::Sptr monkey1 = scene->CreateGameObject("Monkey 1");
+		//{
+		//	// Set position in the scene
+		//	monkey1->SetPostion(glm::vec3(1.5f, 0.0f, 1.0f));
 
-			// Add some behaviour that relies on the physics body
-			monkey1->Add<JumpBehaviour>();
+		//	// Add some behaviour that relies on the physics body
+		//	monkey1->Add<JumpBehaviour>();
 
-			// Create and attach a renderer for the monkey
-			RenderComponent::Sptr renderer = monkey1->Add<RenderComponent>();
-			renderer->SetMesh(monkeyMesh);
-			renderer->SetMaterial(monkeyMaterial);
+		//	// Create and attach a renderer for the monkey
+		//	RenderComponent::Sptr renderer = monkey1->Add<RenderComponent>();
+		//	renderer->SetMesh(monkeyMesh);
+		//	renderer->SetMaterial(monkeyMaterial);
 
-			// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
-			TriggerVolume::Sptr trigger = monkey1->Add<TriggerVolume>();
-			trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
-			trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
+		//	// Example of a trigger that interacts with static and kinematic bodies as well as dynamic bodies
+		//	TriggerVolume::Sptr trigger = monkey1->Add<TriggerVolume>();
+		//	trigger->SetFlags(TriggerTypeFlags::Statics | TriggerTypeFlags::Kinematics);
+		//	trigger->AddCollider(BoxCollider::Create(glm::vec3(1.0f)));
 
-			monkey1->Add<TriggerVolumeEnterBehaviour>();
-		}
+		//	monkey1->Add<TriggerVolumeEnterBehaviour>();
+		//}
 
 		GameObject::Sptr demoBase = scene->CreateGameObject("Demo Parent");
 
