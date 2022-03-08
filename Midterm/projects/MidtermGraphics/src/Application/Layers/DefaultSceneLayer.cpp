@@ -69,6 +69,7 @@
 #include "Gameplay/Components/ParticleSystem.h"
 #include "Graphics/Textures/Texture3D.h"
 #include "Graphics/Textures/Texture1D.h"
+#include <Gameplay/Components/EnemyBehaviour.h>
 
 DefaultSceneLayer::DefaultSceneLayer() :
 	ApplicationLayer()
@@ -393,7 +394,7 @@ void DefaultSceneLayer::_CreateScene()
 			RenderComponent::Sptr renderer = foliageBall->Add<RenderComponent>();
 			renderer->SetMesh(sphere);
 			renderer->SetMaterial(foliageMaterial);
-
+			//foliageBall->Add<EnemyBehaviour>();
 			demoBase->AddChild(foliageBall);
 		}
 
